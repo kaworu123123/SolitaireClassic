@@ -5,16 +5,26 @@ using UnityEngine;
 
 public static class Deck
 {
-    static bool IsVeryLow(CardData c) => c.rank <= 2; // A/2 を対象（必要なら <=3 に）
+    // ===== TUNING =====
+    // A/2/3 を「非常に低い」扱いにする（要望に合わせて <=3）
+    static bool IsVeryLow(CardData c) => c.rank <= 3;
 
-    // 先頭28中、各列の最下段(底)に VeryLow が何枚あるか
+    // A/2/3 を重要扱い（裏に埋めたくない/序盤に触れたい）
+    private static bool IsCritical(CardData c) => c.rank >= 1 && c.rank <= 3;
+
+    // 先頭28中、各列の「最下層（底）」に VeryLow が何枚あるか
+    // ※列0(0枚伏せ)をどう扱うかは excludeCol0 で切替
     static int CountVeryLowAtColumnBottoms(List<CardData> deck, bool excludeCol0 = false)
     {
         int cnt = 0;
         for (int c = 0; c <= 6; c++)
         {
-            if (excludeCol0 && c == 0) continue;     // 列0だけは許す、など柔軟に
-            int idx = c * (c + 1) / 2;               // 底インデックス
+            if (excludeCol0 && c == 0) continue;
+
+            // ★列c の最下層（底）の伏せカード位置は idx = T(c) = c*(c+1)/2
+            // 例: c=0 -> 0, c=1 -> 1, c=2 -> 3, c=3 -> 6, c=4 -> 10, c=5 -> 15, c=6 -> 21
+            int idx = c * (c + 1) / 2;
+
             if (idx < deck.Count && IsVeryLow(deck[idx])) cnt++;
         }
         return cnt;
@@ -37,7 +47,7 @@ public static class Deck
     {
         for (int i = list.Count - 1; i > 0; i--)
         {
-            int rnd = UnityEngine.Random.Range(0, i + 1); // ←明示
+            int rnd = UnityEngine.Random.Range(0, i + 1);
             T tmp = list[i];
             list[i] = list[rnd];
             list[rnd] = tmp;
@@ -58,7 +68,7 @@ public static class Deck
         // 通常シャッフル
         list.Shuffle();
 
-        // 重要カードを奥に埋めない処理
+        // 重要カードを奥に埋めない処理（※この関数は A/2 を対象のまま）
         AvoidBuryingKeyCards(list);
 
         // 同スート連続率を低くする
@@ -69,9 +79,10 @@ public static class Deck
     {
         for (int i = 0; i < 7; i++)
         {
+            // 表7枚に A/2 が来たら奥に逃がす（ここは好みで <=3 にしてもOK）
             if (list[i].rank == 1 || list[i].rank == 2)
             {
-                int swapIndex = UnityEngine.Random.Range(10, list.Count); // ←明示
+                int swapIndex = UnityEngine.Random.Range(10, list.Count);
                 (list[i], list[swapIndex]) = (list[swapIndex], list[i]);
             }
         }
@@ -81,9 +92,9 @@ public static class Deck
     {
         for (int i = 1; i < list.Count; i++)
         {
-            if (list[i].suit == list[i - 1].suit && UnityEngine.Random.value < 0.5f) // ←明示
+            if (list[i].suit == list[i - 1].suit && UnityEngine.Random.value < 0.5f)
             {
-                int swapIndex = UnityEngine.Random.Range(0, list.Count); // ←明示
+                int swapIndex = UnityEngine.Random.Range(0, list.Count);
                 (list[i], list[swapIndex]) = (list[swapIndex], list[i]);
             }
         }
@@ -93,9 +104,9 @@ public static class Deck
     // 列0..6で、深い伏せがあるのは列1..6 → {1,3,6,10,15,21}
     private static readonly int[] BuriedIndices = { 1, 3, 6, 10, 15, 21 };
 
-    private static bool IsImportant(CardData c) => (c.rank == 1 || c.rank == 2); // A=1, 2=2
+    private static bool IsImportant(CardData c) => (c.rank == 1 || c.rank == 2); // 旧互換（A/2）
 
-    // 先頭limit枚での「同スート連続ペア数」を数える（例：ハート→ハート は1カウント）
+    // 先頭limit枚での「同スート連続ペア数」を数える
     private static int CountSameSuitAdjPairs(List<CardData> deck, int limit)
     {
         int n = Math.Min(limit, deck.Count);
@@ -114,7 +125,6 @@ public static class Deck
         {
             if (idx >= 0 && idx < deck.Count && IsImportant(deck[idx]))
             {
-                // 後ろ側から重要でないカードを探す（まずはタブロー以外=28枚目以降を優先）
                 int swapIndex = -1;
 
                 // 1) 28枚目以降（ストック候補）から探す
@@ -162,7 +172,7 @@ public static class Deck
         int maxSameSuitPairsInWholeDeck = 8,
         int maxBuriedCriticalInFaceDown = 0,   // A/2/3 の深埋めは原則ゼロに
         bool requireAtLeastOneCriticalFaceUp = true,
-        int maxTries = 3000                    // 条件強化ぶん試行UP
+        int maxTries = 3000
     )
     {
         var baseDeck = CreateNew();
@@ -187,14 +197,15 @@ public static class Deck
             // ④ 表7枚に最低1枚の重要カード
             if (requireAtLeastOneCriticalFaceUp && !HasCriticalInFaceUpStarters(deck)) continue;
 
-            // ⑤ 列の底に A/2 を置かない（完全禁止）
-            int bottoms = CountVeryLowAtColumnBottoms(deck, excludeCol0: true);
+            // ⑤ 列の底（最下層の伏せ位置）に A/2/3 を置かない（完全禁止）
+            // ここが今回の要望の「本体」：A/2/3 対象＆列0も含めるなら excludeCol0=false
+            int bottoms = CountVeryLowAtColumnBottoms(deck, excludeCol0: false);
             if (bottoms > 0) continue;
 
             // ⑥ 低ランク（A/2/3）の“初期で触れる枚数”を底上げ
             if (!EnoughCriticalExposed(deck)) continue;
 
-            // ⑦ トップK(表7枚のK)が多すぎると渋滞する → 1枚まで
+            // ⑦ 表7枚のKが多すぎると渋滞する → 2枚まで
             if (CountKingOnTopInStarters(deck) > 2) continue;
 
             // ⑧ “開始直後に動ける手”の2本保証（異なる列から）
@@ -202,8 +213,9 @@ public static class Deck
 
             // 似た配列対応
             var sig = DealDiversity.BuildSignature(deck);
-            if (DealDiversity.ViolatesHistory(sig)) continue;  // 似すぎたら棄却
+            if (DealDiversity.ViolatesHistory(sig)) continue;
             DealDiversity.PushHistory(sig);
+
             return deck;
         }
 
@@ -226,18 +238,15 @@ public static class Deck
 
     public static void DebugDeckStats(List<CardData> deck)
     {
-        // 52枚全体
         int totalPairs = CountSameSuitPairsInPrefix(deck, 52);
-        // 先頭28枚（= 配りに相当する部分）
         int first28Pairs = CountSameSuitPairsInPrefix(deck, 28);
 
         Log.D($"[DEBUG] 同スート連続回数 (先頭28): {first28Pairs}, (全体52): {totalPairs}");
 
-        // ついでに先頭28のスート並びも見える化
         System.Text.StringBuilder sb = new System.Text.StringBuilder("先頭28スート: ");
         for (int i = 0; i < Mathf.Min(28, deck.Count); i++)
         {
-            sb.Append(deck[i].suit.ToString()[0]); // H,S,D,C の頭文字
+            sb.Append(deck[i].suit.ToString()[0]);
             if (i < 27) sb.Append("-");
         }
         Log.D(sb.ToString());
@@ -249,7 +258,7 @@ public static class Deck
         var starters = new List<CardData>(7);
         for (int c = 0; c <= 6; c++)
         {
-            int idx = (c * (c + 1) / 2) + c;  // 各列の表カードインデックス
+            int idx = (c * (c + 1) / 2) + c;
             if (idx < deck.Count) starters.Add(deck[idx]);
         }
 
@@ -263,44 +272,32 @@ public static class Deck
                     (a.suit == Suit.Hearts || a.suit == Suit.Diamonds)
                     != (b.suit == Suit.Hearts || b.suit == Suit.Diamonds);
                 if (isOppositeColor && a.rank + 1 == b.rank)
-                    return true; // 例: 赤7 と 黒8 が揃っている
+                    return true;
             }
         return false;
     }
 
-
     // 先頭28枚のうち「裏向き(true) / 表(false)」になる位置を、
-    // Klondike の配り順（ラウンド r=0..6、列 col=r..6）に沿って構築する。
+    // Klondike の配り順に沿って構築する
     private static bool[] BuildKlondikeFaceDownMask()
     {
-        // 合計 28（7+6+5+4+3+2+1）
         bool[] mask = new bool[28];
         int idx = 0;
 
-        // ラウンド r は「その列 r のカードが表になる」タイミング。
-        // 各ラウンドで col=r は表(false)、それより右(col>r)は裏(true)。
         for (int r = 0; r <= 6; r++)
         {
             for (int col = r; col <= 6; col++)
             {
                 bool isFaceUp = (col == r);
-                mask[idx++] = !isFaceUp; // 表=false, 裏=true
+                mask[idx++] = !isFaceUp;
             }
         }
 
-        // 念のため
         if (idx != 28)
         {
             Log.W($"[DealMask] unexpected built length={idx}");
         }
         return mask;
-    }
-
-
-    private static bool IsCritical(CardData c)
-    {
-        // A,2,3 を重要扱い（必要なら <=4 や <=5 に広げてOK）
-        return c.rank >= 1 && c.rank <= 3;
     }
 
     // 先頭28で「裏向きに配られる位置」にある重要カードの個数を数える
@@ -348,22 +345,23 @@ public static class Deck
 
     static (int rank, Suit suit)? GetStarterTop(List<CardData> deck, int col)
     {
-        int idx = (col * (col + 1) / 2) + col; // 各列の表カード
+        int idx = (col * (col + 1) / 2) + col;
         if (idx >= deck.Count) return null;
-        var c = deck[idx]; return (c.rank, c.suit);
+        var c = deck[idx];
+        return (c.rank, c.suit);
     }
 
     // 交互色＆ランク−1
     static bool CanStack((int rank, Suit suit) a, (int rank, Suit suit)? bMaybe)
     {
-        if (a.rank == 13) return true; // Kは空列に積める前提で可動性高とみなす
+        if (a.rank == 13) return true;
         if (bMaybe == null) return false;
         var b = bMaybe.Value;
         bool opposite = ((a.suit == Suit.Clubs || a.suit == Suit.Spades) ^ (b.suit == Suit.Clubs || b.suit == Suit.Spades));
         return opposite && (a.rank == b.rank - 1);
     }
 
-    // A/2/3（Critical）が “表7枚＋山札トップ12枚” に合計3枚以上あるか
+    // A/2/3 が “表7枚＋山札トップ12枚” に合計2枚以上あるか
     static bool EnoughCriticalExposed(List<CardData> deck)
     {
         int cnt = 0;
@@ -399,20 +397,18 @@ public static class Deck
     {
         const int MaxHistory = 10;
 
-        // 署名は「表7枚の (ランク+色) 」+「先頭28のスート列の圧縮」あたりを使う
         public static string BuildSignature(List<CardData> deck)
         {
             var tops = new System.Text.StringBuilder(7 * 3);
             for (int c = 0; c <= 6; c++)
             {
-                int idx = (c * (c + 1) / 2) + c; // 各列の表カード
+                int idx = (c * (c + 1) / 2) + c;
                 if (idx >= deck.Count) break;
                 var cd = deck[idx];
                 char col = (cd.suit == Suit.Clubs || cd.suit == Suit.Spades) ? 'B' : 'R';
                 tops.Append(RankToShort(cd.rank)).Append(col).Append(',');
             }
 
-            // 先頭28のスート列を H/S/D/C の頭文字で
             var suits28 = new System.Text.StringBuilder(28 * 2);
             int n = Mathf.Min(28, deck.Count);
             for (int i = 0; i < n; i++)
@@ -435,10 +431,8 @@ public static class Deck
         {
             history.Add(sig);
             while (history.Count > MaxHistory) history.RemoveAt(0);
-            // 必要なら PlayerPrefs にも保存したい場合は下の Save/Load を使う
         }
 
-        // “トップ7の一致率” と “先頭28スート列のハミング類似” の2つで近さをみる
         static bool IsTooSimilar(string a, string b)
         {
             Parse(a, out var aTops, out var aSuits);
@@ -448,13 +442,12 @@ public static class Deck
             int topCount = Math.Min(aTops.Count, bTops.Count);
             for (int i = 0; i < topCount; i++) if (aTops[i] == bTops[i]) sameTop++;
 
-            // 先頭28のスート比較（位置ごと一致数）
             int suitSame = 0;
             int suitCount = Math.Min(aSuits.Count, bSuits.Count);
             for (int i = 0; i < suitCount; i++) if (aSuits[i] == bSuits[i]) suitSame++;
 
-            bool topsTooClose = (topCount >= 7) && (sameTop >= 5);   // 5/7 以上一致
-            bool suitsTooClose = (suitCount >= 20) && (suitSame >= 16); // 28中16以上一致なら近いとみなす
+            bool topsTooClose = (topCount >= 7) && (sameTop >= 5);
+            bool suitsTooClose = (suitCount >= 20) && (suitSame >= 16);
 
             return topsTooClose && suitsTooClose;
         }
@@ -464,7 +457,6 @@ public static class Deck
             tops = new List<string>(7);
             suits = new List<char>(28);
 
-            // 例: "T7:A B,...,|S28:H-S-D-..."
             var parts = sig.Split('|');
             foreach (var p in parts)
             {
@@ -486,11 +478,5 @@ public static class Deck
         static string RankToShort(int r) => r switch { 1 => "A", 11 => "J", 12 => "Q", 13 => "K", _ => r.ToString() };
 
         static readonly List<string> history = new List<string>();
-
-        // （任意）永続化したいなら以下を使用
-        // const string Key = "DEAL_SIGNATURE_HISTORY";
-        // static void SaveHistory() { var json = JsonUtility.ToJson(new SigList{items=history}); PlayerPrefs.SetString(Key, json); PlayerPrefs.Save(); }
-        // static void LoadHistory() { var json = PlayerPrefs.GetString(Key, ""); if (!string.IsNullOrEmpty(json)) history.Clear(); history.AddRange(JsonUtility.FromJson<SigList>(json).items); }
-        // [Serializable] class SigList { public List<string> items = new(); }
     }
 }
