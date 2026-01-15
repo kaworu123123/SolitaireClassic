@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - FoundationSlot
+  - TableauColumn
+  - StockSlot
+  - WasteSlot
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - Cards
+  - Water
+  - UI
+  - DropZones
+  - Interactables
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 3269933813
+    locked: 0
+  - name: Slots
+    uniqueID: 3236193677
+    locked: 0
+  - name: Cards
+    uniqueID: 3033151011
+    locked: 0
+  - name: UI
+    uniqueID: 3699033613
+    locked: 0

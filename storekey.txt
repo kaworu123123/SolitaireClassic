@@ -1,0 +1,21 @@
+Alias: solitairekey
+
+Password: （任意の強めパスワード）
+
+Confirm password: （同じもの）
+
+Validity (years): 50
+
+First and Last Name: Kaworu
+
+Organizational Unit: （空）
+
+Organization: kwr
+
+City or Locality: Tokyo
+
+State or Province: Tokyo
+
+Country Code (XX): JP
+
+123qwe123QWE

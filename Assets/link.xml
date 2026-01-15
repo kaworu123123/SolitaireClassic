@@ -1,0 +1,15 @@
+<linker>
+  <!-- Google Mobile Ads を全部残す（安全策） -->
+  <assembly fullname="GoogleMobileAds">
+    <namespace fullname="GoogleMobileAds" preserve="all" />
+  </assembly>
+  <assembly fullname="GoogleMobileAds.Core">
+    <namespace fullname="GoogleMobileAds.Core" preserve="all" />
+  </assembly>
+  <assembly fullname="GoogleMobileAds.Unity">
+    <namespace fullname="GoogleMobileAds.Unity" preserve="all" />
+  </assembly>
+  <assembly fullname="GoogleMobileAds.Android">
+    <namespace fullname="GoogleMobileAds.Android" preserve="all" />
+  </assembly>
+</linker>

@@ -1,0 +1,42 @@
+# ===== Unity generated =====
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+*.utmp/
+
+# ===== Burst / DoNotShip =====
+*_BurstDebugInformation*
+*BurstDebugInformation_DoNotShip*/
+
+# ===== Gradle / Android =====
+gradle/
+.gradle/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.sln
+*.csproj
+*.unityproj
+*.user
+*.userprefs
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Security (IMPORTANT) =====
+*.keystore
+
+# ---- Large local backups / docs (do not push) ----
+backups/
+*.zip
+*.7z
+*.rar
+*.pdf
+*.docx
+text/
