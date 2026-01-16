@@ -1,3 +1,4 @@
+cd "/c/Users/kawor/SolitaireClassic"
 git add .
-git commit -m "victoryスコア拡大"
+git commit -m "1,2,3をうめこまないように"
 git push
