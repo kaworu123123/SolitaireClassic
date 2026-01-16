@@ -7,7 +7,7 @@ public static class Deck
 {
     // ===== TUNING =====
     // A/2/3 を「非常に低い」扱いにする（要望に合わせて <=3）
-    static bool IsVeryLow(CardData c) => c.rank <= 3;
+    static bool IsVeryLow(CardData c) => c.rank <= 2;
 
     // A/2/3 を重要扱い（裏に埋めたくない/序盤に触れたい）
     private static bool IsCritical(CardData c) => c.rank >= 1 && c.rank <= 3;
@@ -17,18 +17,18 @@ public static class Deck
     static int CountVeryLowAtColumnBottoms(List<CardData> deck, bool excludeCol0 = false)
     {
         int cnt = 0;
-        for (int c = 0; c <= 6; c++)
+
+        // 深い伏せの底（列1..6の一番深い伏せ）だけチェックする
+        // BuriedIndices = {1,3,6,10,15,21}
+        foreach (var idx in BuriedIndices)
         {
-            if (excludeCol0 && c == 0) continue;
-
-            // ★列c の最下層（底）の伏せカード位置は idx = T(c) = c*(c+1)/2
-            // 例: c=0 -> 0, c=1 -> 1, c=2 -> 3, c=3 -> 6, c=4 -> 10, c=5 -> 15, c=6 -> 21
-            int idx = c * (c + 1) / 2;
-
-            if (idx < deck.Count && IsVeryLow(deck[idx])) cnt++;
+            if (idx >= 0 && idx < deck.Count && IsVeryLow(deck[idx]))
+                cnt++;
         }
+
         return cnt;
     }
+
 
     public static List<CardData> CreateNew()
     {
@@ -113,7 +113,7 @@ public static class Deck
         int cnt = 0;
         for (int i = 0; i < n - 1; i++)
         {
-            if (deck[i].suit == deck[i + 1].suit) cnt++;
+            if (deck[i].suit == deck[i - 1].suit) cnt++;
         }
         return cnt;
     }
@@ -167,12 +167,45 @@ public static class Deck
         return false;
     }
 
+    // ★追加：先頭28（タブロー）で「同スート縦3連以上」を検出する
+    // 同じ列の中で upper.suit == lower.suit が2回連続したら「縦3連」(例: ♠7-♠6-♠5)
+    static bool HasTripleSameSuitRunInFirst28(List<CardData> deck)
+    {
+        int index = 0;
+
+        for (int col = 0; col <= 6; col++)
+        {
+            int height = col + 1;
+            int runPairs = 0;
+
+            for (int row = 0; row < height - 1; row++)
+            {
+                var upper = deck[index + row];
+                var lower = deck[index + row + 1];
+
+                if (upper.suit == lower.suit)
+                {
+                    runPairs++;
+                    if (runPairs >= 2) return true; // 2ペア連続＝3枚同スート
+                }
+                else
+                {
+                    runPairs = 0;
+                }
+            }
+
+            index += height;
+        }
+
+        return false;
+    }
+
     public static List<CardData> CreateEasedNew(
-        int maxSameSuitPairsInFirst28 = 1,
+        int maxSameSuitPairsInFirst28 = 6,
         int maxSameSuitPairsInWholeDeck = 8,
-        int maxBuriedCriticalInFaceDown = 0,   // A/2/3 の深埋めは原則ゼロに
-        bool requireAtLeastOneCriticalFaceUp = true,
-        int maxTries = 3000
+        int maxBuriedCriticalInFaceDown = 2,   // A/2/3 の深埋めは原則ゼロに
+        bool requireAtLeastOneCriticalFaceUp = false,
+        int maxTries = 20000
     )
     {
         var baseDeck = CreateNew();
@@ -185,6 +218,9 @@ public static class Deck
             // ① 先頭28の同スート連続（さらに甘く）
             int p28 = CountSameSuitPairsInPrefix(deck, 28);
             if (p28 > maxSameSuitPairsInFirst28) continue;
+
+            if (HasTripleSameSuitRunInFirst28(deck) && UnityEngine.Random.value < 0.8f)
+                continue; // 80%は弾く、20%は許す
 
             // ② 全体52の同スート連続
             int p52 = CountSameSuitPairsInPrefix(deck, 52);
@@ -200,7 +236,11 @@ public static class Deck
             // ⑤ 列の底（最下層の伏せ位置）に A/2/3 を置かない（完全禁止）
             // ここが今回の要望の「本体」：A/2/3 対象＆列0も含めるなら excludeCol0=false
             int bottoms = CountVeryLowAtColumnBottoms(deck, excludeCol0: false);
-            if (bottoms > 0) continue;
+
+            // 深い伏せ底にA/2が来るのはキツいので「だいたい弾く」(70%)、たまに許す(30%)
+            if (bottoms > 0 && UnityEngine.Random.value < 0.7f)
+                continue;
+
 
             // ⑥ 低ランク（A/2/3）の“初期で触れる枚数”を底上げ
             if (!EnoughCriticalExposed(deck)) continue;
